@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// Table: users
+// Purpose: User accounts (team members & admins)
+// ============================================================================
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  name            String?
+  role            String   @default("member")
+  termsAcceptedAt DateTime? @map("terms_accepted_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  providerKeys  ProviderKey[]
+  requestLogs   RequestLog[]
+  sessions      Session[]
+  conversations Conversation[]
+  apiKeys       ApiKey[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================================================
+// Table: provider_keys
+// Purpose: Per-user API keys for each provider.
+//          Keys are AES-256-GCM encrypted at rest; masked_key is what users see.
+// ============================================================================
+model ProviderKey {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  provider    String
+  encryptedKey String  @map("encrypted_key")
+  maskedKey   String   @map("masked_key")
+  label       String?
+  enabled     Boolean  @default(true)
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([provider])
+  @@map("provider_keys")
+}
+
+// ============================================================================
+// Table: conversations
+// Purpose: Session stickiness tracker — maps a chat session to the last-used provider.
+// ============================================================================
+model Conversation {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  sessionId      String    @unique @map("session_id")
+  providerId     String?   @map("provider_id")
+  modelAlias     String?   @map("model_alias")
+  modelFamily    String?   @map("model_family")
+  messageCount   Int       @default(0) @map("message_count")
+  isActive       Boolean   @default(true) @map("is_active")
+  switchCount    Int       @default(0) @map("switch_count")
+  lastSwitchedAt DateTime? @map("last_switched_at")
+  lastModelUsed  String?   @map("last_model_used")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([isActive])
+  @@map("conversations")
+}
+
+// ============================================================================
+// Table: sessions
+// Purpose: Legacy session tracking for dashboard login (kept for backwards compat)
+// ============================================================================
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  lastModelKey String? @map("last_model_key")
+  messageCount Int   @default(0) @map("message_count")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ============================================================================
+// Table: request_logs
+// Purpose: Complete audit trail of every proxied API request.
+// ============================================================================
+model RequestLog {
+  id           String   @id @default(cuid())
+  requestId    String?  @unique @map("request_id")
+  userId       String?  @map("user_id")
+  apiKeyId     String?  @map("api_key_id")
+  provider     String
+  providerId   String?  @map("provider_id")
+  model        String
+  modelAlias   String?  @map("model_alias")
+  modelUsed    String?  @map("model_used")
+  modelFamily  String?  @map("model_family")
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  totalTokens  Int      @default(0) @map("total_tokens")
+  tokensIn     Int?     @map("tokens_in")
+  tokensOut    Int?     @map("tokens_out")
+  latencyMs    Int      @default(0) @map("latency_ms")
+  status       String
+  errorCode    String?  @map("error_code")
+  sessionId    String?  @map("session_id")
+  streaming    Boolean  @default(false)
+  ipAddress    String?  @map("ip_address")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  apiKey ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([provider])
+  @@index([userId])
+  @@index([status])
+  @@index([sessionId])
+  @@index([apiKeyId])
+  @@map("request_logs")
+}
+
+// ============================================================================
+// Table: model_scores
+// Purpose: Bandit scoring — tracks per-model success/fail/avg latency/tokens-per-sec.
+//          This is the core table for the routing engine's multi-armed bandit.
+// ============================================================================
+model ModelScore {
+  id               String    @id @default(cuid())
+  modelKey         String    @unique @map("model_key")
+  successCount     Int       @default(0) @map("success_count")
+  failCount        Int       @default(0) @map("fail_count")
+  totalRequests    Int       @default(0) @map("total_requests")
+  avgLatencyMs     Float     @default(0) @map("avg_latency_ms")
+  avgTokensPerSec  Float     @default(0) @map("avg_tokens_per_sec")
+  lastUsedAt       DateTime? @map("last_used_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([modelKey])
+  @@index([totalRequests])
+  @@map("model_scores")
+}
+
+// ============================================================================
+// Table: usage_daily
+// Purpose: Aggregated daily usage per provider — for analytics & dashboard stats.
+// ============================================================================
+model UsageDaily {
+  id            String   @id @default(cuid())
+  date          String
+  provider      String
+  totalTokens   Int      @default(0) @map("total_tokens")
+  totalRequests Int      @default(0) @map("total_requests")
+  failCount     Int      @default(0) @map("fail_count")
+  cost          Float    @default(0)
+
+  @@unique([date, provider])
+  @@index([date])
+  @@index([provider])
+  @@map("usage_daily")
+}
+
+// ============================================================================
+// Table: api_keys
+// Purpose: API keys for authentication
+// ============================================================================
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  name        String?
+  keyPrefix   String    @map("key_prefix")
+  keyHash     String    @map("key_hash")
+  isActive    Boolean   @default(true) @map("is_active")
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestLogs RequestLog[]
+
+  @@index([userId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+// ============================================================================
+// Table: provider_health
+// Purpose: Provider health check results
+// ============================================================================
+model ProviderHealth {
+  id               String    @id @default(cuid())
+  providerId       String    @unique @map("provider_id")
+  displayName      String?   @map("display_name")
+  status           String    @default("unknown")
+  circuitState     String    @default("closed") @map("circuit_state")
+  latencyMs        Int?      @map("latency_ms")
+  consecutiveFailures Int    @default(0) @map("consecutive_failures")
+  lastError        String?   @map("last_error")
+  lastCheckedAt    DateTime? @map("last_checked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([providerId])
+  @@map("provider_health")
+}
+
+// ============================================================================
+// Table: provider_quota_state
+// Purpose: Provider quota tracking
+// ============================================================================
+model ProviderQuotaState {
+  id            String   @id @default(cuid())
+  providerId    String   @unique @map("provider_id")
+  requestCount  Int      @default(0) @map("request_count")
+  tokenCount    Int      @default(0) @map("token_count")
+  windowStart   DateTime @default(now()) @map("window_start")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([providerId])
+  @@map("provider_quota_state")
+}
+
+// ============================================================================
+// Table: provider_usage
+// Purpose: Provider usage statistics
+// ============================================================================
+model ProviderUsage {
+  id            String   @id @default(cuid())
+  providerId    String   @map("provider_id")
+  provider      String
+  displayName   String?  @map("display_name")
+  requestCount  Int      @default(0) @map("request_count")
+  tokenCount    Int      @default(0) @map("token_count")
+  failCount     Int      @default(0) @map("fail_count")
+  avgLatencyMs  Float    @default(0) @map("avg_latency_ms")
+  lastUsedAt    DateTime? @map("last_used_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([providerId])
+  @@index([provider])
+  @@map("provider_usage")
+}
+
+// ============================================================================
+// Table: providers
+// Purpose: Provider registry
+// ============================================================================
+model Provider {
+  id          String   @id @default(cuid())
+  providerId  String   @unique @map("provider_id")
+  name        String
+  displayName String?  @map("display_name")
+  baseUrl     String?  @map("base_url")
+  tier        String?
+  keyless     Boolean  @default(false)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([providerId])
+  @@map("providers")
+}
+
+// ============================================================================
+// Table: rate_limits
+// Purpose: Rate limit tracking
+// ============================================================================
+model RateLimit {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  requestCount  Int      @default(0) @map("request_count")
+  windowStart   DateTime @default(now()) @map("window_start")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([key])
+  @@map("rate_limits")
+}
+
