@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { prisma } from "@/lib/db/prisma";
+import logger from "@/lib/logger";
 
 // ============================================================================
 // In-Memory Rate Limit Counter
