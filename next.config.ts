@@ -4,6 +4,12 @@ const nextConfig: NextConfig = {
   // Standalone output for Docker optimization
   output: 'standalone',
 
+  // Image optimization
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days
+  },
+
   // Node.js runtime for API routes (NOT Edge)
   serverExternalPackages: ["bcryptjs", "pino"],
 
