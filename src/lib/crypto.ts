@@ -58,3 +58,12 @@ export function maskKey(key: string): string {
   if (key.length <= 12) return "****";
   return `${key.slice(0, 8)}...${key.slice(-4)}`;
 }
+
+export function sanitizeForLog(input: string): string {
+  return input.replace(/[\r\n\t]/g, "_").slice(0, 200);
+}
+
+export function generateKeyPrefix(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
