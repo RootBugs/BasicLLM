@@ -74,7 +74,13 @@ export async function getApiKeysForUser(userId: string) {
   const keys = await prisma.apiKey.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      keyPrefix: true,
+      isActive: true,
+      lastUsedAt: true,
+      createdAt: true,
       _count: {
         select: { requestLogs: true },
       },
