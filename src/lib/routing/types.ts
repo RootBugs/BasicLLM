@@ -80,3 +80,14 @@ export interface QuotaState {
   resetAt: Date;
   updatedAt: Date;
 }
+
+export interface ProviderConfig {
+  id: string;
+  name: string;
+  displayName: string;
+  tier: number;
+  baseUrl: string;
+  models: string[];
+  isEnabled: boolean;
+  priority: number;
+}
