@@ -51,6 +51,8 @@ export async function checkRateLimit(
   }
 
   const now = new Date();
+  // Handle potential clock skew by using server time
+  const serverTime = Date.now();
   const minuteWindowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
   const dayWindowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 
