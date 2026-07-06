@@ -93,6 +93,8 @@ export const ApiKeyHeaderSchema = z.string().regex(
   "Invalid API key format. Expected: sk-team-xxxxxxxx"
 );
 
+export const SessionIdSchema = z.string().uuid().optional();
+
 // Types
 export type ValidatedChatRequest = z.infer<typeof ChatCompletionRequestSchema>;
 export type ValidatedEmbeddingRequest = z.infer<typeof EmbeddingRequestSchema>;
