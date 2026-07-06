@@ -23,6 +23,10 @@ export async function createSession(userId: string, email: string): Promise<stri
   return token;
 }
 
+export async function refreshSession(userId: string, email: string): Promise<string> {
+  return createSession(userId, email);
+}
+
 export async function verifyAuth(req: Request): Promise<{ id: string; email: string } | null> {
   try {
     const token = req.headers.get("cookie")?.match(/session=([^;]+)/)?.[1];
