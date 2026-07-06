@@ -30,6 +30,7 @@ export interface CleanupReport {
   totalDeleted: number;
   results: CleanupResult[];
   errors: string[];
+  dryRun: boolean;
 }
 
 // ============================================================================
@@ -185,12 +186,12 @@ async function cleanupProviderUsage(): Promise<CleanupResult> {
 // Main Cleanup Runner
 // ============================================================================
 
-export async function runCleanup(): Promise<CleanupReport> {
+export async function runCleanup(dryRun = false): Promise<CleanupReport> {
   const startedAt = new Date();
   const results: CleanupResult[] = [];
   const errors: string[] = [];
 
-  logger.info({ startedAt, retention: RETENTION }, "Data retention cleanup started");
+  logger.info({ startedAt, retention: RETENTION, dryRun }, "Data retention cleanup started");
 
   // Run all cleanup tasks in parallel for speed
   const cleanupTasks = [
@@ -225,6 +226,7 @@ export async function runCleanup(): Promise<CleanupReport> {
     totalDeleted,
     results,
     errors,
+    dryRun,
   };
 
   logger.info(
