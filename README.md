@@ -150,6 +150,36 @@ Client App → BasicLLM Gateway → LLM Provider
 
 ---
 
+## Troubleshooting
+
+### Common Issues
+
+**1. Database connection errors**
+- Ensure `DATABASE_URL` and `DIRECT_URL` are correct
+- Check if Supabase project is active
+- Verify network connectivity
+
+**2. Provider API key errors**
+- Ensure at least one provider API key is set
+- Check key format (should start with provider prefix)
+- Verify key hasn't been revoked
+
+**3. Rate limiting issues**
+- Check `RATE_LIMIT_REQUESTS_PER_MINUTE` setting
+- Verify API key hasn't exceeded limits
+- Check rate limit headers in response
+
+**4. Session expired**
+- Clear browser cookies
+- Re-login to get new session
+- Check `JWT_SECRET` is set correctly
+
+### Debug Mode
+
+Set `LOG_LEVEL=debug` in `.env.local` for verbose logging.
+
+---
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
