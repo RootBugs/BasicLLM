@@ -95,6 +95,13 @@ export const ApiKeyHeaderSchema = z.string().regex(
 
 export const SessionIdSchema = z.string().uuid().optional();
 
+export const HealthCheckSchema = z.object({
+  status: z.enum(["healthy", "unhealthy"]),
+  timestamp: z.string(),
+  database: z.enum(["connected", "disconnected"]),
+});
+
 // Types
 export type ValidatedChatRequest = z.infer<typeof ChatCompletionRequestSchema>;
 export type ValidatedEmbeddingRequest = z.infer<typeof EmbeddingRequestSchema>;
+export type HealthCheckResponse = z.infer<typeof HealthCheckSchema>;
