@@ -2,6 +2,23 @@
 // @ts-nocheck
 import { prisma } from "@/lib/db/prisma";
 
+const metricsCache = new Map<string, { count: number; lastReset: number }>();
+const METRICS_CACHE_TTL = 60_000;
+
+export function incrementRequestCount(providerId: string): void {
+  const entry = metricsCache.get(providerId) || { count: 0, lastReset: Date.now() };
+  if (Date.now() - entry.lastReset > METRICS_CACHE_TTL) {
+    metricsCache.set(providerId, { count: 1, lastReset: Date.now() });
+  } else {
+    entry.count++;
+    metricsCache.set(providerId, entry);
+  }
+}
+
+export function getRequestCount(providerId: string): number {
+  return metricsCache.get(providerId)?.count || 0;
+}
+
 export async function getDashboardStats() {
   const now = new Date();
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
