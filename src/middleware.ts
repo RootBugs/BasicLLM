@@ -5,7 +5,7 @@ export function middleware(req: NextRequest) {
 
   // Protect dashboard routes — redirect to /login if no session cookie
   if (req.nextUrl.pathname.startsWith("/dashboard")) {
-    if (!session) {
+    if (!session || session.trim() === "") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }
